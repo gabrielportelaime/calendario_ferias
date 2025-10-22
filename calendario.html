@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calendário Anual com Feriados · Bootstrap</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --blue-50:#eff6ff;
+      --blue-100:#dbeafe;
+      --red-100:#fee2e2;
+      --red-500:#ef4444;
+      --text:#000000;
+    }
+    body{ background: var(--blue-50); color: var(--text); }
+
+    .month-card{ border-radius: 1rem; height: 100%; display:flex; flex-direction:column; }
+    .month-card .card-body{ display:flex; flex-direction:column; justify-content:space-between; height:100%; }
+    .month-title{ font-size: 1.05rem; font-weight: 700; margin-bottom: .25rem; text-align:center; }
+
+    .weekdays{ display:grid; grid-template-columns:repeat(7,1fr); }
+    .weekdays div{ font-weight: 700; font-size:.8rem; color:#495057; text-align:center; padding:.25rem 0; }
+
+    .days{ display:grid; grid-template-columns:repeat(7,1fr); flex-grow:1; }
+
+    .day{ height:34px; width:34px; border-radius:9999px; display:flex; align-items:center; justify-content:center; margin:.3rem auto; background:var(--blue-100); font-size:.9rem; user-select:none; position:relative; color:var(--text); }
+    .day.empty{ background:transparent; }
+    .day.holiday{ background:var(--red-100); outline:2px solid var(--red-500); }
+
+    .day .tooltipx{ display:none; position:absolute; bottom:44px; left:50%; transform:translateX(-50%); background:#212529; color:#fff; padding:.25rem .5rem; border-radius:.5rem; font-size:.75rem; white-space:nowrap; z-index:10 }
+    .day:hover .tooltipx{ display:block }
+
+    .legend-dot{ height:18px; width:18px; border-radius:9999px; display:inline-block; vertical-align:middle; margin-right:.35rem }
+    .legend-common{ background:var(--blue-100); }
+    .legend-holiday{ background:var(--red-100); outline:2px solid var(--red-500); }
+
+    .shadow-soft{ box-shadow:0 6px 20px rgba(0,0,0,.06); }
+    .btn-ghost{ background:#f8f9fa; border:1px solid #dee2e6; color:#212529 }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg bg-white border-bottom shadow-sm sticky-top">
+    <div class="container-xxl">
+      <span class="navbar-brand fw-semibold">Calendário Anual com Feriados</span>
+      <div class="ms-auto d-flex gap-2">
+        <button class="btn btn-ghost btn-sm" id="btn-print">Imprimir</button>
+        <button class="btn btn-ghost btn-sm" id="btn-export">Exportar</button>
+        <label class="btn btn-ghost btn-sm mb-0" for="file-import">Importar <input id="file-import" type="file" accept="application/json" class="d-none"></label>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-xxl my-4">
+    <div class="card shadow-soft mb-3">
+      <div class="card-body">
+        <form class="row g-3 align-items-end">
+          <div class="col-12 col-md-2">
+            <label for="year" class="form-label fw-semibold">Ano</label>
+            <input id="year" type="number" min="1900" max="2100" step="1" class="form-control" />
+          </div>
+          <div class="col-12 col-md-3">
+            <label for="holiday-date" class="form-label fw-semibold">Data do feriado</label>
+            <input id="holiday-date" type="date" class="form-control" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label for="holiday-name" class="form-label fw-semibold">Nome do feriado</label>
+            <input id="holiday-name" type="text" class="form-control" placeholder="Ex.: Carnaval" />
+          </div>
+          <div class="col-12 col-md-3 d-flex gap-2">
+            <button id="btn-add" type="button" class="btn btn-dark flex-grow-1">Salvar</button>
+            <button id="btn-clear-year" type="button" class="btn btn-ghost">Limpar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="legend-dot legend-common"></div> Dia comum
+      <div class="legend-dot legend-holiday"></div> Feriado (inclui sábados e domingos)
+    </div>
+
+    <div id="calendar" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3"></div>
+
+    <div class="accordion mt-4" id="accSaved">
+      <div class="accordion-item shadow-soft">
+        <h2 class="accordion-header" id="headingOne">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">Feriados salvos</button>
+        </h2>
+        <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#accSaved">
+          <div class="accordion-body">
+            <div id="saved" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirmar</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="confirmBody">Tem certeza?</div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmYes">Remover</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const STORAGE_KEY='calHolidays.v4';
+    const PT_MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const PT_WEEKDAYS_SHORT=['D','S','T','Q','Q','S','S'];
+    const pad=n=>String(n).padStart(2,'0');
+    const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+    const elYear=document.getElementById('year');
+    const elCal=document.getElementById('calendar');
+    const elSaved=document.getElementById('saved');
+    const elDate=document.getElementById('holiday-date');
+    const elName=document.getElementById('holiday-name');
+
+    function loadAll(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||{};}catch{return {};}}
+    function saveAll(o){localStorage.setItem(STORAGE_KEY,JSON.stringify(o));}
+    function getYearMap(y){const a=loadAll();return a[y]||{};}
+    function setYearMap(y,m){const a=loadAll();a[y]=m;saveAll(a);}
+
+    function renderSavedList(y){const m=getYearMap(y);const e=Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0]));elSaved.innerHTML='';if(e.length===0){elSaved.innerHTML='<div class="text-secondary">Nenhum feriado salvo.</div>';return;}e.forEach(([d,n])=>{const i=document.createElement('div');i.className='list-group-item d-flex justify-content-between';i.innerHTML=`<span><strong>${n}</strong> <small class='text-secondary'>${d}</small></span>`;const b=document.createElement('button');b.className='btn btn-outline-danger btn-sm';b.textContent='Remover';b.onclick=()=>{const map=getYearMap(y);delete map[d];setYearMap(y,map);renderCalendar(y);renderSavedList(y);};i.appendChild(b);elSaved.appendChild(i);});}
+
+    function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+
+    function renderCalendar(y){const h=getYearMap(y);elCal.innerHTML='';for(let m=0;m<12;m++){const col=document.createElement('div');const card=document.createElement('div');card.className='card month-card shadow-soft';const body=document.createElement('div');body.className='card-body';const title=document.createElement('div');title.className='month-title';title.textContent=`${PT_MONTHS[m]} ${y}`;const w=document.createElement('div');w.className='weekdays';PT_WEEKDAYS_SHORT.forEach(d=>{const wd=document.createElement('div');wd.textContent=d;w.appendChild(wd);});const grid=document.createElement('div');grid.className='days';const firstDow=new Date(y,m,1).getDay();const total=daysInMonth(y,m);for(let i=0;i<firstDow;i++){const e=document.createElement('div');e.className='day empty';grid.appendChild(e);}for(let d=1;d<=total;d++){const date=new Date(y,m,d);const key=ymd(date);const dow=date.getDay();const isWeekend=(dow===0||dow===6);const cell=document.createElement('div');cell.className='day';cell.textContent=d;let tooltipText='';if(isWeekend){cell.classList.add('holiday');tooltipText=dow===0?'Domingo':'Sábado';}
+        if(h[key]){cell.classList.add('holiday');tooltipText=h[key];}
+        if(tooltipText){const tip=document.createElement('div');tip.className='tooltipx';tip.textContent=tooltipText;cell.appendChild(tip);} 
+        cell.addEventListener('click',()=>{const map=getYearMap(y);if(map[key]){const novo=prompt('Editar feriado',map[key]);if(novo===null)return;if(!novo.trim())delete map[key];else map[key]=novo.trim();}else{const nome=prompt('Nome do feriado', isWeekend ? (dow===0?'Domingo':'Sábado') : 'Feriado');if(!nome)return;map[key]=nome.trim();}setYearMap(y,map);renderCalendar(y);renderSavedList(y);});
+        cell.addEventListener('contextmenu',ev=>{ev.preventDefault();const map=getYearMap(y);if(map[key]){delete map[key];setYearMap(y,map);renderCalendar(y);renderSavedList(y);} /* se não houver registro salvo, mantém o fim de semana marcado */});
+        grid.appendChild(cell);}body.append(title,w,grid);card.appendChild(body);col.appendChild(card);elCal.appendChild(col);} }
+
+    document.getElementById('btn-add').onclick=()=>{const y=+elYear.value;if(!y)return alert('Informe o ano.');const d=elDate.value;if(!d)return alert('Informe a data.');const n=elName.value.trim()||'Feriado';const map=getYearMap(y);map[d]=n;setYearMap(y,map);renderCalendar(y);renderSavedList(y);elName.value='';};
+    document.getElementById('btn-clear-year').onclick=()=>{const y=+elYear.value;if(!y)return; if(confirm('Apagar todos os feriados do ano?')){setYearMap(y,{});renderCalendar(y);renderSavedList(y);}};
+    document.getElementById('btn-print').onclick=()=>window.print();
+    document.getElementById('btn-export').onclick=()=>{const b=new Blob([JSON.stringify(loadAll(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='feriados.json';a.click();URL.revokeObjectURL(a.href);};
+    document.getElementById('file-import').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(j&&typeof j==='object'){const c=loadAll();Object.keys(j).forEach(k=>{c[k]={...(c[k]||{}),...(j[k]||{})};});saveAll(c);renderCalendar(+elYear.value);renderSavedList(+elYear.value);}else alert('Arquivo inválido');}catch{alert('Erro ao ler arquivo');}};r.readAsText(f);};
+
+    (()=>{const n=new Date();elYear.value=n.getFullYear();elDate.value=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;renderCalendar(n.getFullYear());renderSavedList(n.getFullYear());elYear.onchange=()=>{const y=+elYear.value;renderCalendar(y);renderSavedList(y);};})();
+  </script>
+</body>
+</html>
